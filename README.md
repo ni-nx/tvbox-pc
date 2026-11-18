@@ -1,6 +1,6 @@
 ﻿# TVBox PC
 
-一个基于 **TVBox 开源接口协议** 实现的 Windows 桌面影视客户端。2.5.0 起界面**严格照安卓 TVBox 的布局**重排：
+一个基于 **TVBox 开源接口协议** 实现的 Windows 桌面影视客户端。界面**严格照安卓 TVBox 的布局**重排：
 左上「影视」+ 右上时钟 → 一排五个方块图标（点播 / 搜索 / 直播 / 收藏 / 设置）→ 首页左栏章节菜单（最近观看 / 更新推荐 / 按站点浏览）→ 右侧海报墙；
 详情页是「左白边宽屏剧照 + 右片名/评分/站源年份地区类型/导演演员 + 胶囊按钮 + 线路行 + 集数行 + 倒序分页行」；搜索页是「左关键字 + 7 列键盘、右热搜胶囊」；播放器底部是整宽按钮条 + 整条进度。
 
@@ -8,7 +8,7 @@
 解析接口里的站点、分类、搜索、详情、剧集与直播地址，然后用内置播放器播放。
 
 Kodi 那边只借了「操作界面」：媒体库、刮削器、插件、皮肤系统、PVR 这些一律没有实现，
-功能面只保留 TVBox 的那一套。2.4.0 起界面本身也换成安卓 TVBox 的排法。
+功能面只保留 TVBox 的那一套。界面本身也换成安卓 TVBox 的排法。
 
 > 接口与内容由使用者自行提供。请遵守当地法律法规，使用合法授权的影视来源。
 > 本项目只复刻 TVBox 的协议与交互，不包含 TVBox 原项目的 APK、spider jar 或任何第三方资源。
@@ -57,17 +57,14 @@ Kodi 那边只借了「操作界面」：媒体库、刮削器、插件、皮肤
 
 保留的只有 TVBox 的能力（接口观影 + 直播 + 多接口 + 收藏/记录），Kodi 的媒体库、刮削、插件、皮肤/PVR 都没有做。
 
-## 2.7.1 更新
+##
 
 - **右上角状态区**：日期 + 星期 + 时分秒时钟、天气（wttr.in，免 key，中文天气描述；城市默认按 IP 定位，可在设置里改成指定城市）、网络连接状态（在线/离线小圆点）。三个都能在「设置 → 外观与状态栏」单独关掉。
 - **设置页简化**：明面上只留 接口地址 / 已保存接口 / 播放 / 外观与状态栏 / 数据 / 关于；解析引擎、网络 UA、接口工具（粘贴 json、只存地址、诊断、体检、浏览器打开）、接口格式说明全部收进折叠的「高级」里。
 - 修了 `[hidden]` 被自定义 display 覆盖导致空 chip 露出白块的问题；旧的 20 秒时钟定时器不再覆盖状态区 DOM。
 
-## 解析引擎（2.7.0 新增）
+## 解析引擎
 
-影视TV 5.4.2 之所以能跑那些 `type=3` 的站点，是因为它自带 JS 规则引擎。2.7.0 把这套引擎搬进来了：
-
-- `src/renderer/vendor/cat.js` 是从 APK 里原样取出的 TVBox JS 库（`cheerio / jsp / jinja2 / Crypto / CryptoJS` 等都在里面）。
 - `src/renderer/jsspider.js` 是宿主：把规则文件里的 `import` 改写成对 cat.js 的引用，注入同步的 `req()` / 异步的 `http()`（渲染窗口 `webSecurity:false`，可以直接跨域），再取规则导出的 `spider` 对象。
 - 调用约定和 TVBox 一致：`homeContent / categoryContent / detailContent / searchContent / playerContent`，返回的 JSON 直接进现有的解析链路；播放时先问规则的 `playerContent`，拿不到再走网页嗅探和解析接口。
 - 站点的规则地址：先用站点自己的 `spider` 字段，没有就用接口里的全局 `spider`，只认 `.js`。`.jar` 是安卓的 dex 规则，这台电脑上没有 dex 运行时，跑不了。
@@ -86,8 +83,8 @@ Kodi 那边只借了「操作界面」：媒体库、刮削器、插件、皮肤
 
 **两个包，任选一个**：
 
-- `TVBox-PC-2.6.0-setup.exe`：**安装版**。双击 → 选安装目录（默认 `%LOCALAPPDATA%\Programs\TVBox PC`）→ 自动建桌面和开始菜单快捷方式，装完是一个完整的程序文件夹（`TVBox PC.exe` + `resources` + `locales` 等），控制面板里可以正常卸载。
-- `TVBox-PC-2.6.0-portable.exe`：免安装单文件，双击即用，适合放 U 盘。两种包用的是同一份程序与同一个数据目录（`%APPDATA%\TVBox PC`），接口配置通用。
+- `TVBox-PC-setup.exe`：**安装版**。双击 → 选安装目录（默认 `%LOCALAPPDATA%\Programs\TVBox PC`）→ 自动建桌面和开始菜单快捷方式，装完是一个完整的程序文件夹（`TVBox PC.exe` + `resources` + `locales` 等），控制面板里可以正常卸载。
+- `TVBox-PC-portable.exe`：免安装单文件，双击即用，适合放 U 盘。两种包用的是同一份程序与同一个数据目录（`%APPDATA%\TVBox PC`），接口配置通用。
 
 **源码运行**：
 
@@ -104,7 +101,7 @@ npx electron-builder --win dir -c.win.signAndEditExecutable=false
 # 再用 rcedit 写入图标和版本信息（可选，不做则是 Electron 默认图标）
 npx electron-builder --win nsis --x64 --prepackaged "dist\win-unpacked"       # 安装版
 npx electron-builder --win portable --x64 --prepackaged "dist\win-unpacked"   # 免安装版
-# 产物：dist\TVBox-PC-2.6.0-setup.exe / dist\TVBox-PC-2.6.0-portable.exe
+# 产物：dist\TVBox-PC-setup.exe / dist\TVBox-PC-portable.exe
 ```
 
 ## 接口格式
@@ -162,9 +159,6 @@ npx electron-builder --win portable --x64 --prepackaged "dist\win-unpacked"   # 
   一次拿到全部片源，不用在 110 条线路之间来回切；
 * 点某条线路后如果它一个可直连站点都没有，会弹窗说明“全是 spider 规则站”，并给「换一条线路」。
 
-> 实测同一个 110 条线路的多仓：`合并可用站点` 跑完 110 条线路，从其中 27 条里抽到 **170 个可直连站点**
-> （去重后），首页拉出 20 条真实影片（如《茜茜皇后第三季》）、分类 20 条，播放正常。
-> `用最优线路` 则十几秒落到「六六线路」（15 个可直连站点）。
 
 ### 接口会被记住（重启不用重填/重选）
 
