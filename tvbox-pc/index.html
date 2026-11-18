@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TVBox PC</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- Kodi 式全屏背景（随焦点变化） -->
+  <div class="backdrop" id="backdrop"></div>
+  <div class="backdrop-shade"></div>
+
+  <header class="topbar">
+    <!-- 系统标题栏已隐藏，这条 36px 高的透明带用来拖动窗口 -->
+    <div class="win-drag" title="拖动窗口"></div>
+    <!-- 自绘窗口按钮（系统那条标题栏去掉后自己画） -->
+    <div class="win-btns">
+      <button class="win-btn" data-w="min" title="最小化">—</button>
+      <button class="win-btn" data-w="max" title="最大化 / 还原">▢</button>
+      <button class="win-btn close" data-w="close" title="关闭">✕</button>
+    </div>
+    <div class="topbar-row">
+      <div class="brand">
+        <span class="brand-mark">TV</span>
+        <span class="brand-name">TVBox<em>PC</em></span>
+      </div>
+
+      <nav class="nav" id="nav">
+        <button class="nav-btn active" data-view="home">主页</button>
+        <button class="nav-btn" data-view="category">分类</button>
+        <button class="nav-btn" data-view="search">搜索</button>
+        <button class="nav-btn" data-view="live">直播</button>
+        <button class="nav-btn" data-view="fav">收藏</button>
+        <button class="nav-btn" data-view="settings">设置</button>
+      </nav>
+
+      <div class="top-right">
+        <span class="chip" id="cfgChip" title="当前接口">未加载接口</span>
+        <span class="clock" id="clock">--:--</span>
+      </div>
+    </div>
+
+    <!-- 第二行：遥控器最常按的那几个入口（对齐安卓 TVBox 那排胶囊按钮） -->
+    <div class="quickbar" id="quickBar">
+      <button class="pill" id="pillHistory"><svg viewBox="0 0 24 24" class="ico"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.6v4.9l3.2 2"/></svg><span>历史</span></button>
+      <button class="pill" id="pillLive"><svg viewBox="0 0 24 24" class="ico"><rect x="3.2" y="6" width="17.6" height="12.4" rx="2"/><path d="M9 9.6l4.4 2.4-4.4 2.4z"/></svg><span>直播</span></button>
+      <button class="pill" id="pillSearch"><svg viewBox="0 0 24 24" class="ico"><circle cx="10.6" cy="10.6" r="6"/><path d="M15.2 15.2L20 20"/></svg><span>搜索</span></button>
+      <button class="pill" id="pillLine"><svg viewBox="0 0 24 24" class="ico"><path d="M4.4 8.4h13.2l-2.6-2.6"/><path d="M19.6 15.6H6.4l2.6 2.6"/></svg><span>换线路</span></button>
+      <button class="pill" id="pillDiag"><svg viewBox="0 0 24 24" class="ico"><circle cx="10.2" cy="10.2" r="5.4"/><path d="M14.2 14.2L19 19"/><path d="M10.2 7.8v4.8"/></svg><span>配置</span></button>
+      <button class="pill" id="pillFav"><svg viewBox="0 0 24 24" class="ico"><path d="M12 19.2c-6-3.8-7.6-7-7.6-9.4 0-2.2 1.7-3.8 3.7-3.8 1.6 0 3 1 3.9 2.6 .9-1.6 2.3-2.6 3.9-2.6 2 0 3.7 1.6 3.7 3.8 0 2.4-1.6 5.6-7.6 9.4z"/></svg><span>收藏</span></button>
+      <button class="pill" id="pillRefresh"><svg viewBox="0 0 24 24" class="ico"><path d="M19 12a7 7 0 1 1-2.4-5.3"/><path d="M19.4 5.6v4.2h-4.2"/></svg><span>刷新</span></button>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="view" id="view-home"></section>
+    <section class="view hidden" id="view-category"></section>
+    <section class="view hidden" id="view-search"></section>
+    <section class="view hidden" id="view-live"></section>
+    <section class="view hidden" id="view-fav"></section>
+    <section class="view hidden" id="view-settings"></section>
+  </main>
+
+  <!-- 详情（Kodi 影视信息页） -->
+  <div class="overlay hidden" id="detailPane">
+    <div class="detail" id="detailBody"></div>
+  </div>
+
+  <!-- 播放器 -->
+  <div class="overlay hidden" id="playerPane">
+    <div class="player-shell">
+      <video id="video" playsinline preload="metadata"></video>
+
+      <div class="player-top" id="playerTop">
+        <button class="pbtn round" id="btnBackFromPlayer" title="返回">‹</button>
+        <div class="pt-info">
+          <div class="pt-title" id="playerTitle">—</div>
+          <div class="pt-sub" id="playerSub"></div>
+        </div>
+        <div class="pt-tools">
+          <button class="pbtn" id="btnEpPanel">选集</button>
+          <button class="pbtn" id="btnPlayerFull">全屏</button>
+        </div>
+      </div>
+
+      <div class="player-bottom" id="playerBottom">
+        <div class="pb-bar">
+          <span class="pb-time" id="pbCur">00:00</span>
+          <div class="pb-track" id="pbTrack">
+            <div class="pb-buf" id="pbBuf"></div>
+            <div class="pb-fill" id="pbFill"></div>
+            <div class="pb-dot" id="pbDot"></div>
+          </div>
+          <span class="pb-time" id="pbDur">00:00</span>
+        </div>
+        <div class="pb-btns">
+          <button class="pbtn" id="btnPrevEp">上一集</button>
+          <button class="pbtn" id="btnPlayPause">暂停</button>
+          <button class="pbtn" id="btnNextEp">下一集</button>
+          <button class="pbtn" id="btnSeekBack">后退 10s</button>
+          <button class="pbtn" id="btnSeekFwd">前进 10s</button>
+          <button class="pbtn" id="btnRate">倍速 <em id="rateLabel">1.0×</em></button>
+        </div>
+      </div>
+
+      <div class="player-msg hidden" id="playerMsg"></div>
+      <aside class="ep-panel hidden" id="epPanel"></aside>
+    </div>
+  </div>
+
+  <!-- 通用弹窗 -->
+  <div class="overlay hidden" id="modalPane">
+    <div class="modal">
+      <h3 id="modalTitle">提示</h3>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-actions" id="modalActions"></div>
+    </div>
+  </div>
+
+  <div class="toast hidden" id="toast"></div>
+</div>
+
+<script src="vendor/hls.min.js"></script>
+<script src="app.js"></script>
+<script src="kodi.js"></script>
+</body>
+</html>

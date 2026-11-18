@@ -1,0 +1,26 @@
+const { app, BrowserWindow, ipcMain } = require('electron');
+const path = require('path'); const fs = require('fs'); const http = require('http');
+const ROOT = path.join(__dirname, '..', 'src', 'renderer');
+let base = '';
+app.whenReady().then(async () => {
+  ipcMain.handle('http:get', async (_e, p) => { try { const r = await fetch(p.url, { headers: p.headers||{} }); return { ok:r.ok, status:r.status, text:await r.text(), finalUrl:r.url }; } catch(e){ return { ok:false, status:0, text:'', error:String(e) }; } });
+  ipcMain.handle('net:set-identity', async () => true);
+  ipcMain.handle('app:info', async () => ({ version:'t' }));
+  ipcMain.handle('app:open-external', async () => true);
+  ipcMain.handle('app:fullscreen', async () => true);
+  const server = http.createServer((req,res)=>{ let p=decodeURIComponent((req.url||'/').split('?')[0]); if(p==='/')p='/index.html'; const f=path.join(ROOT,p); if(!fs.existsSync(f)){res.writeHead(404).end('no');return;} res.writeHead(200,{'Content-Type': p.endsWith('.css')?'text/css':(p.endsWith('.js')?'text/javascript':'text/html')}); res.end(fs.readFileSync(f)); });
+  await new Promise(r=>server.listen(0,'127.0.0.1',r)); base='http://127.0.0.1:'+server.address().port;
+  const win = new BrowserWindow({ width:1600,height:900,show:false,webPreferences:{ preload: path.join(__dirname,'..','src','preload.js'), contextIsolation:true, nodeIntegration:false, webSecurity:false }});
+  await win.loadURL(base+'/index.html');
+  await new Promise(r=>setTimeout(r,900));
+  const js=(c)=>win.webContents.executeJavaScript(c,true);
+  await js(`(async () => { await loadInterface('http://127.0.0.1:8899/config.json',{save:false}); switchView('search'); })()`);
+  await new Promise(r=>setTimeout(r,600));
+  const s1 = await js(`(() => { const v=document.querySelector('#view-search'); v.scrollTop=220; v.dispatchEvent(new Event('scroll',{bubbles:true})); return {st:v.scrollTop, compact:document.body.classList.contains('top-compact')}; })()`);
+  console.log('AFTER_SCROLL', JSON.stringify(s1));
+  await js(`(() => { document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowUp',bubbles:true})); })()`);
+  await new Promise(r=>setTimeout(r,300));
+  const s2 = await js(`(() => { const v=document.querySelector('#view-search'); return {compact:document.body.classList.contains('top-compact'), st:v.scrollTop, focusCls: (document.querySelector('.focus')||{}).className}; })()`);
+  console.log('AFTER_UP', JSON.stringify(s2));
+  app.quit();
+}).catch(e=>{ console.error('ERR',e); app.exit(1); });
