@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TVBox PC</title>
+<link rel="stylesheet" href="app.css">
+<style>
+/* 海报卡片焦点：与参照接口行同粗 —— 外缘 2px 蓝环（画在封面外侧，不被封面盖住），圆角 12px 贴封面；浮起 1.06 由 kodi.js 内联 transform 处理 */
+#app .card.focus {
+  outline: none !important;
+  border-style: solid !important;
+  border-width: 0 !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 1.5px var(--accent) !important;
+  background-color: transparent !important;
+  border-radius: 12px !important;
+  padding: 0 !important;
+}
+</style>
+</head>
+<body>
+<script>
+/* 先上色再渲染，避免启动时先闪一下深色：默认浅色，可跟随系统 */
+try {
+  var __q = (location.search.match(/theme=([^&]+)/) || [])[1];
+  var __st = JSON.parse(localStorage.getItem('tvbox_settings_v1') || '{}');
+  var __mode = (__q ? decodeURIComponent(__q) : '') || __st.theme || 'light';
+  var __dark = __mode === 'dark' ||
+    (__mode === 'auto' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  if (!__dark) document.body.classList.add('light');
+  document.body.setAttribute('data-theme', __mode);
+} catch (e) {}
+</script>
+<div id="app">
+
+  <!-- Kodi 式全屏背景（随焦点变化） -->
+  <div class="backdrop" id="backdrop"></div>
+  <div class="backdrop-shade"></div>
+
+  <header class="topbar">
+    <!-- 系统标题栏已隐藏，这条 36px 高的透明带用来拖动窗口 -->
+    <div class="win-drag" title="拖动窗口"></div>
+    <!-- 自绘窗口按钮（系统那条标题栏去掉后自己画） -->
+    <div class="win-btns">
+      <button class="win-btn" data-w="min" title="最小化">—</button>
+      <button class="win-btn" data-w="max" title="最大化 / 还原">▢</button>
+      <button class="win-btn" data-w="close" title="关闭">✕</button>
+    </div>
+
+    <!-- 第一行：品牌 + 右上角状态区（天气 / 日期时间 / 网络） -->
+    <div class="topbar-row">
+      <div class="brand brand-btn" id="brandBtn" role="button" tabindex="0" title="选择线路">
+        <img class="brand-mark" src="assets/icon.png" alt="TVBox PC">
+        <span class="brand-name">TVBox PC</span>
+      </div>
+      <div class="top-right" id="statusBar">
+        <span class="status-item weather" id="weatherChip" hidden title="天气（点击刷新）"><i class="w-ico" id="weatherIco"></i><span id="weatherText"></span></span>
+        <span class="status-item clock" id="clock">
+          <span class="clk-time" id="clockTime">--:--:--</span>
+          <span class="clk-date" id="clockDate"></span>
+        </span>
+        <span class="status-item net" id="netChip" title="网络连接状态">
+          <svg class="net-svg" id="netIco" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 18.5a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6zM12 13.2c-2.1 0-4 .8-5.4 2.2l1.4 1.4A5.6 5.6 0 0 1 12 15.2c1.6 0 3.1.6 4.2 1.6l1.4-1.4A7.6 7.6 0 0 0 12 13.2zM12 7.8c-3.5 0-6.7 1.4-9.1 3.8l1.4 1.4A10.4 10.4 0 0 1 12 9.8c2.9 0 5.5 1.1 7.7 3.2l1.4-1.4A12.4 12.4 0 0 0 12 7.8zM12 2.5C7.6 2.5 3.5 4.3.5 7.3l1.4 1.4A14.6 14.6 0 0 1 12 4.5c4.1 0 7.8 1.7 10.1 4.2l1.4-1.4A16.6 16.6 0 0 0 12 2.5z"/></svg>
+          <span id="netText" hidden></span>
+        </span>
+        <span class="chip" id="cfgChip" title="当前接口" hidden>未加载接口</span>
+      </div>
+    </div>
+
+    <!-- 第二行：五个大方块入口（点播 / 搜索 / 直播 / 收藏 / 设置），和 TVBox 首页那排图标一致 -->
+    <nav class="tiles" id="nav">
+      <button class="nav-btn tile active" id="tileVod" data-view="home">
+        <svg viewBox="0 0 24 24" class="ticon"><circle cx="12" cy="12" r="8.6"/><circle cx="8.6" cy="9.4" r="1.1"/><circle cx="15.4" cy="9.4" r="1.1"/><circle cx="8.6" cy="14.6" r="1.1"/><circle cx="15.4" cy="14.6" r="1.1"/><path d="M6.6 17.2c1.4 1.2 3.3 1.8 5.4 1.8s4-.6 5.4-1.8"/></svg>
+        <span>点播</span>
+      </button>
+      <button class="nav-btn tile" data-view="live">
+        <svg viewBox="0 0 24 24" class="ticon"><rect x="3" y="6" width="18" height="12.6" rx="2"/><path d="M9 9.8l4.6 2.6-4.6 2.6z"/></svg>
+        <span>直播</span>
+      </button>
+      <button class="nav-btn tile" id="tileSearch" data-view="search">
+        <svg viewBox="0 0 24 24" class="ticon"><circle cx="10.4" cy="10.4" r="6.2"/><path d="M15.2 15.2L20.4 20.4"/></svg>
+        <span>搜索</span>
+      </button>
+      <button class="nav-btn tile" data-view="fav">
+        <svg viewBox="0 0 24 24" class="ticon"><path d="M12 19.4c-6-3.9-7.7-7.1-7.7-9.6 0-2.2 1.7-3.9 3.8-3.9 1.6 0 3 1 3.9 2.6 .9-1.6 2.3-2.6 3.9-2.6 2.1 0 3.8 1.7 3.8 3.9 0 2.5-1.7 5.7-7.7 9.6z"/></svg>
+        <span>收藏</span>
+      </button>
+      <button class="nav-btn tile" data-view="settings">
+        <svg viewBox="0 0 24 24" class="ticon"><circle cx="12" cy="12" r="3.2"/><path d="M12 4.2v2.2M12 17.6v2.2M4.2 12h2.2M17.6 12h2.2M6.6 6.6l1.6 1.6M15.8 15.8l1.6 1.6M17.4 6.6l-1.6 1.6M8.2 15.8l-1.6 1.6"/></svg>
+        <span>设置</span>
+      </button>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="view" id="view-home"></section>
+    <section class="view hidden" id="view-category"></section>
+    <section class="view hidden" id="view-search"></section>
+    <section class="view hidden" id="view-live"></section>
+    <section class="view hidden" id="view-fav"></section>
+    <section class="view hidden" id="view-settings"></section>
+  </main>
+
+  <!-- 详情（Kodi 影视信息页） -->
+  <div class="overlay hidden" id="detailPane">
+    <div class="detail" id="detailBody"></div>
+  </div>
+
+  <!-- 播放器 -->
+  <div class="overlay hidden" id="playerPane">
+    <div class="player-shell">
+      <video id="video" playsinline preload="metadata"></video>
+
+      <div class="player-top" id="playerTop">
+        <button class="pbtn round" id="btnBackFromPlayer" title="返回">‹</button>
+        <div class="pt-info">
+          <div class="pt-title" id="playerTitle">—</div>
+          <div class="pt-sub" id="playerSub"></div>
+        </div>
+        <div class="pt-tools">
+          <button class="pbtn" id="btnEpPanel">选集</button>
+          <button class="pbtn" id="btnPlayerFull">全屏</button>
+        </div>
+      </div>
+
+      <div class="player-bottom" id="playerBottom">
+        <div class="pb-btns">
+          <button class="pbtn" id="btnPrevEp">上集</button>
+          <button class="pbtn" id="btnNextEp">下集</button>
+          <button class="pbtn" id="btnPlayPause">暂停</button>
+          <button class="pbtn" id="btnSeekBack">后退10s</button>
+          <button class="pbtn" id="btnSeekFwd">前进10s</button>
+          <button class="pbtn" id="btnRate">倍速 <em id="rateLabel">1.0×</em></button>
+          <button class="pbtn" id="btnEpPanel2">选集</button>
+          <button class="pbtn" id="btnPlayerFull2">全屏</button>
+        </div>
+        <div class="pb-bar">
+          <span class="pb-time" id="pbCur">00:00</span>
+          <div class="pb-track" id="pbTrack">
+            <div class="pb-buf" id="pbBuf"></div>
+            <div class="pb-fill" id="pbFill"></div>
+            <div class="pb-dot" id="pbDot"></div>
+          </div>
+          <span class="pb-time" id="pbDur">00:00</span>
+        </div>
+      </div>
+
+      <div class="player-msg hidden" id="playerMsg"></div>
+      <aside class="ep-panel hidden" id="epPanel"></aside>
+    </div>
+  </div>
+
+  <!-- 通用弹窗 -->
+  <div class="overlay hidden" id="modalPane">
+    <div class="modal">
+      <h3 id="modalTitle">提示</h3>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-actions" id="modalActions"></div>
+    </div>
+  </div>
+
+  <div class="toast hidden" id="toast"></div>
+</div>
+
+<script src="vendor/hls.min.js"></script>
+<script type="module" src="jsspider.js"></script>
+<script src="app.js"></script>
+<script src="kodi.js"></script>
+</body>
+</html>
